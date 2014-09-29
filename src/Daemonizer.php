@@ -13,6 +13,15 @@ class Daemonizer implements LoggerAwareInterface
 
     private $logger;
 
+    private $signals = [
+        SIGTERM => 'SIGTERM',
+        SIGINT => 'SIGINT',
+        SIGHUP => 'SIGHUP',
+        SIGTSTP => 'SIGTSTP'
+    ];
+
+    private $waiting = false;
+
     public function __construct(Daemon $daemon)
     {
         $this->daemon = $daemon;
@@ -26,24 +35,33 @@ class Daemonizer implements LoggerAwareInterface
 
     public function run()
     {
-        if ($this->attachSignals()) {
-            $this->daemon->setup();
-            $this->daemon->run();
+        $run = $this->attachSignals();
+
+        while ($run) {
+            try {
+                $run = false;
+
+                $this->daemon->setup();
+                $this->daemon->run();
+            } catch (RestartException $ex) {
+                $run = true;
+            }
+
             $this->daemon->cleanup();
         }
     }
 
     private function attachSignals()
     {
+        $sigHandler = [
+            $this,
+            "handleSignal"
+        ];
 
-
-        $sigHandler = [ $this, "handleSignal"];
-        $signals = [ 'SIGTERM', 'SIGINT' ];
-
-        foreach ($signals as $signal) {
+        foreach ($this->signals as $signal) {
             $this->logger->debug("Attaching signal handler for $signal");
 
-            if (! pcntl_signal(constant($signal), $sigHandler)) {
+            if (! pcntl_signal(constant($signal), $sigHandler, false)) {
                 $this->logger->error("Failed to attach handler for $signal.");
 
                 return false;
@@ -55,24 +73,39 @@ class Daemonizer implements LoggerAwareInterface
 
     public function handleSignal($signal)
     {
-        $this->logger->debug("Caught signal $signal");
+        $signalName = $this->signals[$signal];
+        $this->logger->debug("Caught signal $signalName");
 
         switch ($signal) {
-            case SIGTERM:
+            case SIGHUP:
+                $this->restartProcess();
+                break;
             case SIGKILL:
             case SIGINT:
+            case SIGTERM:
+            case SIGTSTP:
                 $this->killProcess();
+                break;
         }
 
         $this->logger->debug("Ignored received signal");
     }
 
+    private function restartProcess()
+    {
+        echo PHP_EOL . 'Gracefully restarting process...' . PHP_EOL . PHP_EOL;
+
+        throw new RestartException('restart');
+    }
+
     private function killProcess()
     {
-        $this->logger->debug('Invoking cleanup.');
-        $this->daemon->cleanup();
+        echo PHP_EOL . 'Exiting program, waiting for graceful shutdown...' . PHP_EOL . PHP_EOL;
 
-        $this->logger->debug('Exit.');
+        $this->waiting = true;
+        $this->daemon->cleanup();
+        $this->waiting = false;
+
         exit();
     }
 }
