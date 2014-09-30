@@ -57,17 +57,28 @@ $cleanup = function ()
 
 // You can pass any object implementing \Aztech\Daemonize\Daemon here instead of a CallbackDaemon instance.
 $callbackd = (new CallbackDaemon($run))
-    ->onInitialize(function() { /* Invoked before main routine starts... */ })
-    ->onCleanup(function() { /* Invoked on program shutdown (except when trigger by SIGKILL)... */ })
-    ->onPause(function() { /* Invoked when user presses Ctrl+Z or sends SIGTSTP... */ }
+    ->onInitialize(function() { 
+        /* Invoked before main routine starts... */ 
+        echo 'Initializing process...' . PHP_EOL;
+    })
+    ->onCleanup(function() { 
+        /* Invoked on program shutdown (except when trigger by SIGKILL)... */ 
+        echo 'Cleaning up...' . PHP_EOL;
+    })
+    ->onPause(function() { 
+        /* Invoked when user presses Ctrl+Z or sends SIGTSTP... */ 
+        echo 'Pausing execution...' . PHP_EOL;
+    }
     ->onResume(function() { 
         /* Invoked when program resumes after being paused via keyboard, SIGTSTP, or SIGSTOP */
-        /* Warning : resume can not rely on pause being invoked, a process can be stopped via SIGSTOP, and cannot process it */
+        /* Warning : resume can not rely on pause being invoked as a process can be stopped 
+           via SIGSTOP, and when that happens, the signal is never transferred to the process. */
+        echo 'Resuming execution...' . PHP_EOL;
     })
     ->onKill(SIGUSR1, function($signal) {
-        echo 'I got a USR signal : ' . $signal . PHP_EOL;
         /* Invoked when USR1 or USR2 signals are raised */
         /* First param to onKill is either SIGUSR1 or SIGUSR2 */
+        echo 'I got a USR signal : ' . $signal . PHP_EOL;
     });
 
 $daemonizer = new Daemonizer($callbackd);
