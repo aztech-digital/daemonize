@@ -1,5 +1,6 @@
 <?php
 
+// Required in your entrypoint
 declare(ticks = 1);
 
 use Aztech\Daemonize\CallbackDaemon;

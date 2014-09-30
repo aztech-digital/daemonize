@@ -40,8 +40,8 @@ final class CurrentProcess
 
     private function inspectProcess()
     {
-        $this->pid = getmypid();
-        $this->uid = getmyuid();
+        $this->pid = posix_getpid();
+        $this->uid = posix_getuid();
 
         if (function_exists('zend_thread_id')) {
             $this->threadId = zend_thread_id();
