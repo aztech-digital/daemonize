@@ -10,7 +10,7 @@ All this stuff is meant to make it easy to :
 - Get the opportunity to do some cleanup work when a user quits your shell application with Ctrl + C, SIGINT, or SIGTERM.
 - Perform cleanup routines when your application is stopped (not quit) via SIGTSTP.
 - Perform restore routines when your application is resumed via SIGCONT.
-- Restart your application (restarts the PHP interpreter under the same PID, so it's a restart with a new stack blablabla...) or reload your config when your application receives a SIGCONT.
+- Restart your application (restarts the PHP interpreter under the same PID, so it's a restart with a new stack blablabla...) or reload your config when your application receives a SIGHUP.
 - Respond to USR signals sent to your application
 
 ## Installation
