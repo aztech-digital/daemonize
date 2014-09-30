@@ -13,99 +13,124 @@ class Daemonizer implements LoggerAwareInterface
 
     private $logger;
 
-    private $signals = [
-        SIGTERM => 'SIGTERM',
-        SIGINT => 'SIGINT',
-        SIGHUP => 'SIGHUP',
-        SIGTSTP => 'SIGTSTP'
-    ];
+    private $signalHandler = null;
 
-    private $waiting = false;
+    private $waitForSigCont = false;
 
     public function __construct(Daemon $daemon)
     {
         $this->daemon = $daemon;
         $this->logger = new NullLogger();
+        $this->signalHandler = new SignalHandler();
     }
 
     public function setLogger(LoggerInterface $logger)
     {
         $this->logger = $logger;
+        $this->signalHandler->setLogger($logger);
     }
 
     public function run()
     {
-        $run = $this->attachSignals();
+        $this->registerSignals();
 
-        while ($run) {
-            try {
-                $run = false;
+        if ($this->daemon instanceof KillableDaemon) {
+            $this->daemon->initialize();
+        }
 
-                $this->daemon->setup();
-                $this->daemon->run();
-            } catch (RestartException $ex) {
-                $run = true;
-            }
-
-            $this->daemon->cleanup();
+        try {
+            $this->daemon->run();
+        }
+        catch (RestartException $ex) {
+            $this->replaceProcess();
         }
     }
 
-    private function attachSignals()
+    private function registerSignals()
     {
-        $sigHandler = [
-            $this,
-            "handleSignal"
+        $subs = [
+            [ SIGHUP, [ $this, 'restartProcess' ] ],
+            [ SIGINT, [ $this, 'killProcess' ] ],
+            [ SIGTERM, [ $this, 'killProcess' ] ]
         ];
 
-        foreach ($this->signals as $signal) {
-            $this->logger->debug("Attaching signal handler for $signal");
-
-            if (! pcntl_signal(constant($signal), $sigHandler, false)) {
-                $this->logger->error("Failed to attach handler for $signal.");
-
-                return false;
-            }
+        if ($this->daemon instanceof KillableDaemon) {
+            $subs[] = [ SIGUSR1, $this->getUsrSigCallback(SIGUSR1) ];
+            $subs[] = [ SIGUSR2, $this->getUsrSigCallback(SIGUSR2) ];
         }
 
-        return true;
+        if ($this->daemon instanceof ResumableDaemon) {
+            $subs[] = [ SIGTSTP, [ $this, 'pauseProcess' ] ];
+            $subs[] = [ SIGCONT, [ $this, 'resumeProcess' ] ];
+        }
+
+        foreach ($subs as $subscription) {
+            $this->signalHandler->register($subscription[0], $subscription[1]);
+        }
     }
 
-    public function handleSignal($signal)
+    private function getUsrSigCallback($signal)
     {
-        $signalName = $this->signals[$signal];
-        $this->logger->debug("Caught signal $signalName");
+        $daemon = $this->daemon;
+        $callback = function() { };
 
-        switch ($signal) {
-            case SIGHUP:
-                $this->restartProcess();
-                break;
-            case SIGKILL:
-            case SIGINT:
-            case SIGTERM:
-            case SIGTSTP:
-                $this->killProcess();
-                break;
+        if ($daemon instanceof KillableDaemon) {
+            $callback = function() use ($signal, $daemon) {
+                return $daemon->kill($signal);
+            };
         }
 
-        $this->logger->debug("Ignored received signal");
+        return $callback;
     }
 
-    private function restartProcess()
+    private function replaceProcess()
+    {
+        if (! CurrentProcess::getInstance()->restartInProc()) {
+            throw new \RuntimeException('Unable to restart process');
+        }
+    }
+
+    public function restartProcess()
     {
         echo PHP_EOL . 'Gracefully restarting process...' . PHP_EOL . PHP_EOL;
 
         throw new RestartException('restart');
     }
 
-    private function killProcess()
+    public function killProcess()
     {
         echo PHP_EOL . 'Exiting program, waiting for graceful shutdown...' . PHP_EOL . PHP_EOL;
 
-        $this->waiting = true;
-        $this->daemon->cleanup();
-        $this->waiting = false;
+        if ($this->daemon instanceof KillableDaemon) {
+            $this->daemon->cleanup();
+        }
 
         exit();
+    }
+
+    public function pauseProcess()
+    {
+        if ($this->daemon instanceof ResumableDaemon) {
+            $this->daemon->pause();
+        }
+
+        // Unregister then re-raise SIGTSTP to use default PHP signal handler
+        $this->signalHandler->unregister(SIGTSTP);
+        $this->signalHandler->processOnly(SIGTSTP);
+
+        CurrentProcess::getInstance()->kill(SIGTSTP);
+    }
+
+    public function resumeProcess()
+    {
+        echo PHP_EOL . 'Resuming process...' . PHP_EOL;
+
+        // Restore SIGTSTP custom handler
+        $this->signalHandler->processAll();
+        $this->signalHandler->register(SIGTSTP, [ $this, 'pauseProcess' ]);
+
+        if ($this->daemon instanceof ResumableDaemon) {
+            $this->daemon->resume();
+        }
     }
 }

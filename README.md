@@ -1,9 +1,16 @@
 daemonize
 =========
 
-Small library to give a long running tasks an opportunity to perform some cleanup routines  when it is not cleanly exited (ie. via interrupts / kill).
+Small library to handle POSIX signals from your application.
 
 It is a simple wrapper on top of pcntl_* functions, and requires a PHP version compiled with pcntl support, which pretty much excludes Windows builds IIRC.
+
+All this stuff is meant to make it easy to :
+
+- Get the opportunity to do some cleanup work when a user quits your shell application with Ctrl + C.
+- Pause/resume your application
+- Restart your application (restarts the PHP interpreter under the same PID, so it's a restart with a new stack blablabla...)
+- Send USR signals to your application
 
 ## Installation
 
@@ -36,14 +43,52 @@ use Aztech\Daemonize\Daemonizer;
 $run = function ()
 {
     // Long (or forever) running work goes here
+    while (true) {
+        echo '.';
+        sleep(1);
+    }
 };
 
 $cleanup = function ()
 {
+    echo 'Ooops, I need to cleanup before I die...' . PHP_EOL;
     // Cleaning up goes here
 };
 
 // You can pass any object implementing \Aztech\Daemonize\Daemon here instead of a CallbackDaemon instance.
-$daemonizer = new Daemonizer(new CallbackDaemon($run, $cleanup));
+$callbackd = (new CallbackDaemon($run))
+    ->onInitialize(function() { /* Invoked before main routine starts... */ })
+    ->onCleanup(function() { /* Invoked on program shutdown (except when trigger by SIGKILL)... */ })
+    ->onPause(function() { /* Invoked when user presses Ctrl+Z or sends SIGTSTP... */ }
+    ->onResume(function() { 
+        /* Invoked when program resumes after being paused via keyboard, SIGTSTP, or SIGSTOP */
+        /* Warning : resume can not rely on pause being invoked, a process can be stopped via SIGSTOP, and cannot process it */
+    })
+    ->onKill(SIGUSR1, function($signal) {
+        echo 'I got a USR signal : ' . $signal . PHP_EOL;
+        /* Invoked when USR1 or USR2 signals are raised */
+        /* First param to onKill is either SIGUSR1 or SIGUSR2 */
+    });
+
+$daemonizer = new Daemonizer($callbackd);
 $daemonizer->run();
 ```
+
+Once your process is running, you can now play with it and signals from your command line :
+
+```bash
+# Simple pausing (from another terminal window, or when running in background mode)
+kill -SIGTSTP `pgrep php` # Suspend program execution
+kill -SIGCONT `pgrep php` # Resume program (in background mode)
+fg # Bring program back to foreground
+# Press Ctrl+Z to pause & detach, then "kill -SIGCONT" to resume execution in background
+
+# Pausing without invoking pause handler
+kill -SIGSTOP `pgrep php`
+kill -SIGCONT `pgrep php`
+
+# Restart the PHP interpreter while keeping same PID.
+kill -SIGHUP `pgrep php` # Restart the PHP interpreter used by the running script
+
+``̀
+

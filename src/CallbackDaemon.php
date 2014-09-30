@@ -2,31 +2,104 @@
 
 namespace Aztech\Daemonize;
 
-class CallbackDaemon implements Daemon
+class CallbackDaemon implements KillableDaemon, ResumableDaemon
 {
 
-    private $run;
+    private $cleanupCallback = null;
 
-    private $cleanup;
+    private $initCallback = null;
 
-    public function __construct(callable $run, callable $cleanup)
+    private $killCallbacks = [];
+
+    private $pauseCallback = null;
+
+    private $resumeCallback = null;
+
+    private $runCallback = null;
+
+    public function __construct(callable $runnable)
     {
-        $this->run = $run;
-        $this->cleanup = $cleanup;
+        $this->runCallback = $runnable;
     }
 
-    public function setup()
+    public function onCleanup(callable $runnable)
     {
-        return;
+        $this->cleanupCallback = $runnable;
+
+        return $this;
     }
 
-    public function run()
+    public function onInitialize(callable $runnable)
     {
-        call_user_func($this->run);
+        $this->initCallback = $runnable;
+
+        return $this;
+    }
+
+    public function onKill($usrSignal, callable $function)
+    {
+        if ($usrSignal !== SIGUSR1 && $usrSignal !== SIGUSR2) {
+            throw new \InvalidArgumentException();
+        }
+
+        $this->killCallbacks[$usrSignal] = $function;
+
+        return $this;
+    }
+
+    public function onPause(callable $runnable)
+    {
+        $this->pauseCallback = $runnable;
+
+        return $this;
+    }
+
+    public function onResume(callable $runnable)
+    {
+        $this->resumeCallback = $runnable;
+
+        return $this;
     }
 
     public function cleanup()
     {
-        call_user_func($this->cleanup);
+        if ($this->cleanupCallback) {
+            call_user_func($this->cleanupCallback);
+        }
+    }
+
+    public function initialize()
+    {
+        if ($this->initCallback) {
+            call_user_func($this->initCallback);
+        }
+    }
+
+    public function kill($signal)
+    {
+        if (array_key_exists($signal, $this->killCallbacks) && $this->killCallbacks[$signal]) {
+            call_user_func($this->killCallbacks[$signal]);
+        }
+    }
+
+    public function pause()
+    {
+        if ($this->pauseCallback) {
+            call_user_func($this->pauseCallback);
+        }
+    }
+
+    public function resume()
+    {
+        if ($this->resumeCallback) {
+            call_user_func($this->resumeCallback);
+        }
+    }
+
+    public function run()
+    {
+        if ($this->runCallback) {
+            call_user_func($this->runCallback);
+        }
     }
 }
