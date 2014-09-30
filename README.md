@@ -7,10 +7,11 @@ It is a simple wrapper on top of pcntl_* functions, and requires a PHP version c
 
 All this stuff is meant to make it easy to :
 
-- Get the opportunity to do some cleanup work when a user quits your shell application with Ctrl + C.
-- Pause/resume your application
-- Restart your application (restarts the PHP interpreter under the same PID, so it's a restart with a new stack blablabla...)
-- Send USR signals to your application
+- Get the opportunity to do some cleanup work when a user quits your shell application with Ctrl + C, SIGINT, or SIGTERM.
+- Perform cleanup routines when your application is stopped (not quit) via SIGTSTP.
+- Perform restore routines when your application is resumed via SIGCONT.
+- Restart your application (restarts the PHP interpreter under the same PID, so it's a restart with a new stack blablabla...) or reload your config when your application receives a SIGCONT.
+- Respond to USR signals sent to your application
 
 ## Installation
 
@@ -95,7 +96,7 @@ kill -SIGCONT `pgrep php`
 # Bring program back to foreground
 fg 
 
-# Press Ctrl+Z to pause & detach, then "kill -SIGCONT" to resume execution in background
+# Press Ctrl+Z to pause & detach, then "bg" to resume execution in background
 
 # Pausing without invoking pause handler
 kill -SIGSTOP `pgrep php`
