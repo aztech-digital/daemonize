@@ -77,18 +77,24 @@ $daemonizer->run();
 Once your process is running, you can now play with it and signals from your command line :
 
 ```bash
-# Simple pausing (from another terminal window, or when running in background mode)
-kill -SIGTSTP `pgrep php` # Suspend program execution
-kill -SIGCONT `pgrep php` # Resume program (in background mode)
-fg # Bring program back to foreground
+# *Simple pausing (from another terminal window, or when running in background mode)*
+
+# Suspend program execution
+kill -SIGTSTP `pgrep php`
+# Resume program (in background mode)
+kill -SIGCONT `pgrep php` 
+# Bring program back to foreground
+fg 
+
 # Press Ctrl+Z to pause & detach, then "kill -SIGCONT" to resume execution in background
 
 # Pausing without invoking pause handler
 kill -SIGSTOP `pgrep php`
+# Resume (resume handler is always invoked)
 kill -SIGCONT `pgrep php`
 
-# Restart the PHP interpreter while keeping same PID.
-kill -SIGHUP `pgrep php` # Restart the PHP interpreter used by the running script
+# Restart the PHP interpreter and running script while keeping same PID.
+kill -SIGHUP `pgrep php`
 
 ``̀
 
