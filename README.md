@@ -85,7 +85,7 @@ $daemonizer = new Daemonizer($callbackd);
 $daemonizer->run();
 ```
 
-Once your process is running, you can now play with it and signals from your command line :
+Once your process is running, it can process signals that you send :
 
 ```bash
 # Suspend program execution
