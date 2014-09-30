@@ -24,13 +24,13 @@ Composer is the only supported way of installing *aztech/daemonize* . Don't know
 
 Add the following code to your bootstrap file :
 
-```
+```php
 require_once 'vendor/autoload.php';
 ```
 
 ## Usage
 
-```
+```php
 <?php
 
 require_once __DIR__ . '/../vendor/autoload.php';
