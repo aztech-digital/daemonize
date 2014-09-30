@@ -20,6 +20,8 @@ class Dummy
 {
     private $var = '0';
 
+    private $reloads = 0;
+
     function init()
     {
         echo 'Initializing process... ' . PHP_EOL;
@@ -48,13 +50,18 @@ class Dummy
     function stop()
     {
         echo 'Stopping... [' . $this->var . ']' . PHP_EOL;
-        var_dump($this);
+    }
+
+    function reload()
+    {
+        $this->reloads++;
+
+        echo 'Reloaded configuration : ' . $this->reloads . PHP_EOL;
     }
 
     function resume()
     {
         echo 'Resuming... [' . $this->var . ']' . PHP_EOL;
-        var_dump($this);
     }
 }
 
@@ -67,7 +74,8 @@ $callbackd = (new CallbackDaemon($run))
     ->onInitialize([ $dummy, 'init' ])
     ->onCleanup([ $dummy, 'cleanup' ])
     ->onPause([ $dummy, 'stop' ])
-    ->onResume([ $dummy, 'resume' ]);
+    ->onResume([ $dummy, 'resume' ])
+    ->onReload([ $dummy, 'reload']);
 
 $daemonizer = new Daemonizer($callbackd);
 $daemonizer->setLogger(new EchoLogger());

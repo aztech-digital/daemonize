@@ -15,6 +15,8 @@ final class CurrentProcess
         return self::$instance;
     }
 
+    private $interactive = false;
+
     private $pid = 0;
 
     private $uid = 0;
@@ -32,6 +34,11 @@ final class CurrentProcess
         $this->inspect();
     }
 
+    public function refresh()
+    {
+        $this->inspect();
+    }
+
     private function inspect()
     {
         $this->inspectProcess();
@@ -42,6 +49,7 @@ final class CurrentProcess
     {
         $this->pid = posix_getpid();
         $this->uid = posix_getuid();
+        $this->interactive = posix_isatty(STDOUT);
 
         if (function_exists('zend_thread_id')) {
             $this->threadId = zend_thread_id();
@@ -111,11 +119,6 @@ final class CurrentProcess
     public function kill($signal)
     {
         return posix_kill($this->pid, $signal);
-    }
-
-    public function rename($name)
-    {
-        return cli_set_process_title($name);
     }
 
 }

@@ -42,7 +42,7 @@ class Daemonizer implements LoggerAwareInterface
             $this->daemon->run();
         }
         catch (RestartException $ex) {
-            $this->replaceProcess();
+            return $this->replaceProcess();
         }
     }
 
@@ -83,6 +83,19 @@ class Daemonizer implements LoggerAwareInterface
         return $callback;
     }
 
+    public function restartProcess()
+    {
+        if (! ($this->daemon instanceof ReloadableDaemon)) {
+            echo PHP_EOL . 'Gracefully restarting process...' . PHP_EOL . PHP_EOL;
+
+            throw new RestartException('restart');
+        }
+
+        echo PHP_EOL . 'Gracefully reloading...' . PHP_EOL . PHP_EOL;
+
+        $this->reloadProcess();
+    }
+
     private function replaceProcess()
     {
         if (! CurrentProcess::getInstance()->restartInProc()) {
@@ -90,12 +103,11 @@ class Daemonizer implements LoggerAwareInterface
         }
     }
 
-    public function restartProcess()
+    private function reloadProcess()
     {
-        echo PHP_EOL . 'Gracefully restarting process...' . PHP_EOL . PHP_EOL;
-
-        throw new RestartException('restart');
+        $this->daemon->reload();
     }
+
 
     public function killProcess()
     {
@@ -124,6 +136,8 @@ class Daemonizer implements LoggerAwareInterface
     public function resumeProcess()
     {
         echo PHP_EOL . 'Resuming process...' . PHP_EOL;
+
+        CurrentProcess::getInstance()->refresh();
 
         // Restore SIGTSTP custom handler
         $this->signalHandler->processAll();

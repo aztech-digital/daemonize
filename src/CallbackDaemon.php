@@ -2,7 +2,7 @@
 
 namespace Aztech\Daemonize;
 
-class CallbackDaemon implements KillableDaemon, ResumableDaemon
+class CallbackDaemon implements KillableDaemon, ResumableDaemon, ReloadableDaemon
 {
 
     private $cleanupCallback = null;
@@ -12,6 +12,8 @@ class CallbackDaemon implements KillableDaemon, ResumableDaemon
     private $killCallbacks = [];
 
     private $pauseCallback = null;
+
+    private $reloadCallback = null;
 
     private $resumeCallback = null;
 
@@ -54,6 +56,13 @@ class CallbackDaemon implements KillableDaemon, ResumableDaemon
         return $this;
     }
 
+    public function onReload(callable $runnable)
+    {
+        $this->reloadCallback = $runnable;
+
+        return $this;
+    }
+
     public function onResume(callable $runnable)
     {
         $this->resumeCallback = $runnable;
@@ -86,6 +95,16 @@ class CallbackDaemon implements KillableDaemon, ResumableDaemon
     {
         if ($this->pauseCallback) {
             call_user_func($this->pauseCallback);
+        }
+    }
+
+    public function reload()
+    {
+        if ($this->reloadCallback) {
+            call_user_func($this->reloadCallback);
+        }
+        else {
+            throw new RestartException();
         }
     }
 
