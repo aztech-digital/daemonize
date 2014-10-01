@@ -103,7 +103,7 @@ class SignalHandler implements LoggerAwareInterface
         $signalName = $this->signals[$signal];
 
         if ($signal == SIGINT || $signal == SIGTSTP) {
-            echo "\033[D\033[D\033[2K" . PHP_EOL;
+            echo "\033[2K" . PHP_EOL;
         }
 
         if (! array_key_exists($signal, $this->handlers)) {
