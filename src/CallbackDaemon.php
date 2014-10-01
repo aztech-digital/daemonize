@@ -104,6 +104,7 @@ class CallbackDaemon implements KillableDaemon, ResumableDaemon, ReloadableDaemo
             call_user_func($this->reloadCallback);
         }
         else {
+            echo 'No reload function available, restarting instead...' . PHP_EOL;
             throw new RestartException();
         }
     }

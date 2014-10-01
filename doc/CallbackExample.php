@@ -30,6 +30,13 @@ class Dummy
     function run()
     {
         while (true) {
+            $read = [ STDIN ];
+            $write = $except = [ ];
+
+            while (stream_select($read, $write, $except, 0) > 0) {
+                echo 'stdin >> ' . fgets($read[0]);
+            }
+
             $this->var = date(DATE_RSS);
 
             echo $this->var . PHP_EOL;

@@ -67,6 +67,13 @@ class SignalHandler implements LoggerAwareInterface
         }
     }
 
+    public function clear()
+    {
+        foreach ($this->signals as $signal => $callbacks) {
+            pcntl_signal($signal, SIG_DFL);
+        }
+    }
+
     public function register($signal, callable $callback)
     {
         $this->validateSignal($signal);

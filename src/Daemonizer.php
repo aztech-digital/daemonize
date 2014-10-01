@@ -2,6 +2,7 @@
 
 namespace Aztech\Daemonize;
 
+use Aztech\Process\CurrentProcess;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -30,7 +31,7 @@ class Daemonizer implements LoggerAwareInterface
         $this->signalHandler->setLogger($logger);
     }
 
-    public function run()
+    public function run($fork = false)
     {
         $this->registerSignals();
 
@@ -39,7 +40,16 @@ class Daemonizer implements LoggerAwareInterface
         }
 
         try {
-            $this->daemon->run();
+            if ($fork) {
+                $task = function () {
+                    echo getmypid() . PHP_EOL;
+                    $this->daemon->run();
+                };
+
+                exit(CurrentProcess::getInstance()->fork($task, true));
+            }
+
+            return $this->daemon->run();
         }
         catch (RestartException $ex) {
             return $this->replaceProcess();
@@ -69,6 +79,11 @@ class Daemonizer implements LoggerAwareInterface
         }
     }
 
+    private function unregisterAll()
+    {
+        $this->signalHandler->clear();
+    }
+
     private function getUsrSigCallback($signal)
     {
         $daemon = $this->daemon;
@@ -85,6 +100,8 @@ class Daemonizer implements LoggerAwareInterface
 
     public function restartProcess()
     {
+        echo getmypid();
+
         if (! ($this->daemon instanceof ReloadableDaemon)) {
             echo PHP_EOL . 'Gracefully restarting process...' . PHP_EOL . PHP_EOL;
 
@@ -98,7 +115,7 @@ class Daemonizer implements LoggerAwareInterface
 
     private function replaceProcess()
     {
-        if (! CurrentProcess::getInstance()->restartInProc()) {
+        if (! CurrentProcess::getInstance()->restart()) {
             throw new \RuntimeException('Unable to restart process');
         }
     }
@@ -136,8 +153,6 @@ class Daemonizer implements LoggerAwareInterface
     public function resumeProcess()
     {
         echo PHP_EOL . 'Resuming process...' . PHP_EOL;
-
-        CurrentProcess::getInstance()->refresh();
 
         // Restore SIGTSTP custom handler
         $this->signalHandler->processAll();
