@@ -21,6 +21,8 @@ class Daemonizer implements LoggerAwareInterface
         return $daemonizer->run();
     }
 
+    private $cleanup = true;
+
     private $daemon;
 
     private $logger;
@@ -54,7 +56,6 @@ class Daemonizer implements LoggerAwareInterface
         try {
             if ($fork) {
                 $task = function () {
-                    echo getmypid() . PHP_EOL;
                     $this->daemon->run();
                 };
 
@@ -93,13 +94,9 @@ class Daemonizer implements LoggerAwareInterface
 
     private function registerShutdownFunction()
     {
-        $daemon = $this->daemon;
+        $daemon = $this;
 
-        register_shutdown_function(function () use ($daemon) {
-            if ($daemon instanceof KillableDaemon) {
-                $daemon->cleanup();
-            }
-        });
+        register_shutdown_function([ $this, 'cleanProcess' ]);
     }
 
     private function unregisterAll()
@@ -121,10 +118,16 @@ class Daemonizer implements LoggerAwareInterface
         return $callback;
     }
 
+    public function cleanProcess()
+    {
+        if ($this->cleanup && $this->daemon instanceof DisposableDaemon) {
+            $this->daemon->cleanup();
+            $this->cleanup = false;
+        }
+    }
+
     public function restartProcess()
     {
-        echo getmypid();
-
         if (! ($this->daemon instanceof ReloadableDaemon)) {
             echo PHP_EOL . 'Gracefully restarting process...' . PHP_EOL . PHP_EOL;
 
@@ -148,12 +151,11 @@ class Daemonizer implements LoggerAwareInterface
         $this->daemon->reload();
     }
 
-
     public function killProcess()
     {
         echo PHP_EOL . 'Exiting program, waiting for graceful shutdown...' . PHP_EOL . PHP_EOL;
 
-        if ($this->daemon instanceof KillableDaemon) {
+        if ($this->daemon instanceof DisposableDaemon) {
             $this->daemon->cleanup();
         }
 

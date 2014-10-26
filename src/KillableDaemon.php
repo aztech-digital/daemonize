@@ -2,12 +2,10 @@
 
 namespace Aztech\Daemonize;
 
-interface KillableDaemon extends Daemon
+interface KillableDaemon extends DisposableDaemon
 {
 
     function initialize();
-
-    function cleanup();
 
     function kill($signal);
 
