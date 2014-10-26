@@ -17,7 +17,7 @@
         "php": ">= 5.4",
         "ext-pcntl": "*",
         "aztech/php-utils": "*",
-        "aztech/process": "@dev",
+        "aztech/process": "~1",
         "psr/log": "~1.0"
     },
     "require-dev": {
