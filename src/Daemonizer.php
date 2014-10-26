@@ -10,6 +10,17 @@ use Psr\Log\NullLogger;
 class Daemonizer implements LoggerAwareInterface
 {
 
+    public static function start(Daemon $daemon, LoggerInterface $logger = null)
+    {
+        $daemonizer = new self($daemon);
+
+        if ($logger) {
+            $daemonizer->setLogger($logger);
+        }
+
+        return $daemonizer->run();
+    }
+
     private $daemon;
 
     private $logger;
