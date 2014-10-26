@@ -155,9 +155,7 @@ class Daemonizer implements LoggerAwareInterface
     {
         echo PHP_EOL . 'Exiting program, waiting for graceful shutdown...' . PHP_EOL . PHP_EOL;
 
-        if ($this->daemon instanceof DisposableDaemon) {
-            $this->daemon->cleanup();
-        }
+        $this->cleanProcess();
 
         exit();
     }
