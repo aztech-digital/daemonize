@@ -34,6 +34,7 @@ class Daemonizer implements LoggerAwareInterface
     public function run($fork = false)
     {
         $this->registerSignals();
+        $this->registerShutdownFunction();
 
         if ($this->daemon instanceof KillableDaemon) {
             $this->daemon->initialize();
@@ -77,6 +78,17 @@ class Daemonizer implements LoggerAwareInterface
         foreach ($subs as $subscription) {
             $this->signalHandler->register($subscription[0], $subscription[1]);
         }
+    }
+
+    private function registerShutdownFunction()
+    {
+        $daemon = $this->daemon;
+
+        register_shutdown_function(function () use ($daemon) {
+            if ($daemon instanceof KillableDaemon) {
+                $daemon->cleanup();
+            }
+        });
     }
 
     private function unregisterAll()
