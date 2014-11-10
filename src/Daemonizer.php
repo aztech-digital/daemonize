@@ -46,6 +46,8 @@ class Daemonizer implements LoggerAwareInterface
 
     public function run($fork = false)
     {
+        declare(ticks = 25);
+        
         $this->registerSignals();
         $this->registerShutdownFunction();
 
